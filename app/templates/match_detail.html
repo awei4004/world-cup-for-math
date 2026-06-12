@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="/" style="color:var(--text-muted); text-decoration:none;">← 返回仪表盘</a>
+
+<h1 class="page-title" style="margin-top:0.5rem;">
+    {{ match.home_team.name_cn }}
+    {% if match.status == 'finished' or match.status == 'live' %}
+        <span style="color:var(--gold);">{{ match.home_score }} - {{ match.away_score }}</span>
+    {% else %}
+        VS
+    {% endif %}
+    {{ match.away_team.name_cn }}
+</h1>
+
+<div class="match-meta" style="margin-bottom:1.5rem;">
+    📅 {{ match.match_date.strftime('%Y-%m-%d %H:%M') }} ·
+    🏟 {{ match.stadium }}, {{ match.city }} ·
+    📋 {{ match.stage }}{% if match.matchday %} 第{{ match.matchday }}轮{% endif %}
+    {% if match.temperature %}· 🌡 {{ match.temperature }}°C{% endif %}
+    {% if match.weather %}· {{ match.weather }}{% endif %}
+    {% if match.referee_name %}· 👨‍⚖️ {{ match.referee_name }}{% endif %}
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+
+    <!-- LEFT: Team info -->
+    <div>
+        <!-- Home Team -->
+        <div class="card">
+            <div class="card-header">
+                🏠 {{ match.home_team.name_cn }}
+                {% if match.home_team.is_host %}<span style="color:var(--gold);">⭐东道主</span>{% endif %}
+            </div>
+            <table>
+                <tr><td>FIFA排名</td><td><strong>#{{ match.home_team.fifa_ranking }}</strong></td></tr>
+                <tr><td>Elo评分</td><td><strong>{{ match.home_team.elo_rating|round(1) }}</strong></td></tr>
+                <tr><td>总身价</td><td><strong>€{{ (match.home_team.total_market_value/1000000)|round(0)|int }}M</strong></td></tr>
+                <tr><td>平均年龄</td><td><strong>{{ match.home_team.avg_age }}</strong></td></tr>
+                <tr><td>联合会</td><td><strong>{{ match.home_team.confederation }}</strong></td></tr>
+                <tr><td>伤病影响</td><td>
+                    <div style="background:#333;border-radius:4px;height:8px;">
+                        <div style="width:{{ match.home_team.injury_impact_score }}%;background:{% if match.home_team.injury_impact_score > 50 %}var(--accent){% else %}var(--green){% endif %};height:100%;border-radius:4px;"></div>
+                    </div>
+                    {{ match.home_team.injury_impact_score|round(0)|int }}%
+                </td></tr>
+            </table>
+        </div>
+
+        <!-- Away Team -->
+        <div class="card">
+            <div class="card-header">
+                ✈ {{ match.away_team.name_cn }}
+                {% if match.away_team.is_host %}<span style="color:var(--gold);">⭐东道主</span>{% endif %}
+            </div>
+            <table>
+                <tr><td>FIFA排名</td><td><strong>#{{ match.away_team.fifa_ranking }}</strong></td></tr>
+                <tr><td>Elo评分</td><td><strong>{{ match.away_team.elo_rating|round(1) }}</strong></td></tr>
+                <tr><td>总身价</td><td><strong>€{{ (match.away_team.total_market_value/1000000)|round(0)|int }}M</strong></td></tr>
+                <tr><td>平均年龄</td><td><strong>{{ match.away_team.avg_age }}</strong></td></tr>
+                <tr><td>联合会</td><td><strong>{{ match.away_team.confederation }}</strong></td></tr>
+                <tr><td>伤病影响</td><td>
+                    <div style="background:#333;border-radius:4px;height:8px;">
+                        <div style="width:{{ match.away_team.injury_impact_score }}%;background:{% if match.away_team.injury_impact_score > 50 %}var(--accent){% else %}var(--green){% endif %};height:100%;border-radius:4px;"></div>
+                    </div>
+                    {{ match.away_team.injury_impact_score|round(0)|int }}%
+                </td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- RIGHT: Prediction & Odds -->
+    <div>
+        {% if match.prediction %}
+        <!-- Win/Draw/Loss -->
+        <div class="card">
+            <div class="card-header">🔮 胜平负预测</div>
+            <div class="prob-bars" style="height:32px;">
+                <div class="prob-bar prob-home" style="width:{{ (match.prediction.prob_home_win*100)|round }}%;">
+                    {{ (match.prediction.prob_home_win*100)|round }}%
+                </div>
+                <div class="prob-bar prob-draw" style="width:{{ (match.prediction.prob_draw*100)|round }}%;">
+                    {{ (match.prediction.prob_draw*100)|round }}%
+                </div>
+                <div class="prob-bar prob-away" style="width:{{ (match.prediction.prob_away_win*100)|round }}%;">
+                    {{ (match.prediction.prob_away_win*100)|round }}%
+                </div>
+            </div>
+            <div class="prob-labels" style="margin-top:0.3rem;">
+                <span>主胜 {{ (match.prediction.prob_home_win*100)|round }}%</span>
+                <span>平局 {{ (match.prediction.prob_draw*100)|round }}%</span>
+                <span>客胜 {{ (match.prediction.prob_away_win*100)|round }}%</span>
+            </div>
+            <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">
+                📊 预期进球: {{ match.prediction.expected_home_goals }} - {{ match.prediction.expected_away_goals }}
+                · 置信度: {{ match.prediction.confidence_score|round(0)|int }}%
+            </div>
+        </div>
+
+        <!-- Score Probability Chart -->
+        <div class="card">
+            <div class="card-header">⚽ 比分概率分布 (Top 8)</div>
+            <canvas id="scoreChart" height="200"></canvas>
+        </div>
+
+        <!-- Total Goals -->
+        <div class="card">
+            <div class="card-header">🥅 总进球数概率</div>
+            <canvas id="goalsChart" height="150"></canvas>
+        </div>
+        {% else %}
+        <div class="card" style="text-align:center; padding:2rem;">
+            <p style="color:var(--text-muted);">预测尚未生成</p>
+            <button class="btn btn-primary" style="margin-top:0.5rem;"
+                    hx-post="/api/predictions/generate/{{ match.id }}"
+                    hx-target="body" hx-swap="outerHTML">
+                🔮 生成预测
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Odds -->
+        {% if match.odds %}
+        <div class="card">
+            <div class="card-header">🎲 竞彩赔率</div>
+            <table>
+                <tr>
+                    <th></th><th>胜</th><th>平</th><th>负</th>
+                </tr>
+                <tr>
+                    <td>赔率</td>
+                    <td><strong>{{ match.odds.win_odds }}</strong></td>
+                    <td><strong>{{ match.odds.draw_odds }}</strong></td>
+                    <td><strong>{{ match.odds.lose_odds }}</strong></td>
+                </tr>
+                {% set imp = match.odds.implied_probability_1x2() %}
+                {% if imp %}
+                <tr>
+                    <td>市场概率</td>
+                    <td>{{ (imp.home*100)|round(1) }}%</td>
+                    <td>{{ (imp.draw*100)|round(1) }}%</td>
+                    <td>{{ (imp.away*100)|round(1) }}%</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- External Factors -->
+{% if match.external_factors %}
+<div class="card" style="margin-top:1.5rem;">
+    <div class="card-header">🔍 场外因素分析</div>
+    <div class="factor-grid">
+        <div class="factor-item">
+            <div class="factor-label">🏠 主场球迷支持</div>
+            <div class="factor-value">{{ match.external_factors.home_crowd_support|round(0)|int }}/100</div>
+        </div>
+        <div class="factor-item">
+            <div class="factor-label">⛅ 天气影响 (主队)</div>
+            <div class="factor-value" style="color:{% if match.external_factors.weather_impact_home > 0 %}var(--green){% else %}var(--accent){% endif %}">
+                {{ match.external_factors.weather_impact_home|round(1) }}
+            </div>
+        </div>
+        <div class="factor-item">
+            <div class="factor-label">🏔 海拔优势</div>
+            <div class="factor-value">{{ match.external_factors.altitude_advantage|round(0)|int }}/100</div>
+        </div>
+        <div class="factor-item">
+            <div class="factor-label">💪 战意因子</div>
+            <div class="factor-value">{{ match.external_factors.motivation_factor|round(0)|int }}/100</div>
+        </div>
+        <div class="factor-item">
+            <div class="factor-label">💰 市场资金方向</div>
+            <div class="factor-value" style="color:{% if match.external_factors.betting_market_sentiment > 0 %}var(--green){% else %}var(--accent){% endif %}">
+                {{ (match.external_factors.betting_market_sentiment*100)|round(0)|int }}% 偏向{{ '主队' if match.external_factors.betting_market_sentiment > 0 else '客队' }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if match.prediction %}
+<script>
+// Score probability chart
+const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+const scoreProbs = {{ match.prediction.get_score_probs() | tojson | safe }};
+const homeName = '{{ match.home_team.name_cn }}';
+const awayName = '{{ match.away_team.name_cn }}';
+// Sort by probability descending, show top 15
+const sortedScores = Object.entries(scoreProbs)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+const scoreLabels = sortedScores.map(([k]) => {
+    const [h, a] = k.split('-');
+    return homeName + ' ' + h + '-' + a + ' ' + awayName;
+});
+const scoreValues = sortedScores.map(([, v]) => v * 100);
+
+new Chart(scoreCtx, {
+    type: 'bar',
+    data: {
+        labels: scoreLabels,
+        datasets: [{
+            label: '概率',
+            data: scoreValues,
+            backgroundColor: sortedScores.map(([k]) => {
+                const [h, a] = k.split('-').map(Number);
+                return h > a ? '#2ecc71' : h < a ? '#e94560' : '#888';
+            }),
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#2a3a4a' } },
+            y: { ticks: { color: '#a0a0a0', font: { size: 11 } }, grid: { display: false } }
+        }
+    }
+});
+
+// Goals distribution chart
+const goalsCtx = document.getElementById('goalsChart').getContext('2d');
+const goalsProbs = {{ match.prediction.get_total_goals_probs() | tojson | safe }};
+new Chart(goalsCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(goalsProbs).map(k => k + '球'),
+        datasets: [{
+            label: '概率',
+            data: Object.values(goalsProbs).map(v => v * 100),
+            backgroundColor: '#3498db',
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#2a3a4a' } },
+            x: { ticks: { color: '#a0a0a0' }, grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

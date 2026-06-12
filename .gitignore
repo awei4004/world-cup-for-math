@@ -1,0 +1,40 @@
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Data files (large/dynamic)
+data/model.pkl
+data/seed/odds_real.json
+
+# Environment
+.env
+.env.local
+
+# Excel reference files
+*.xlsx

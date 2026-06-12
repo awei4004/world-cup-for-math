@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #e94560;
+            --gold: #f0c040;
+            --green: #2ecc71;
+            --blue: #3498db;
+            --text: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --card-bg: #1e2a3a;
+            --border: #2a3a4a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--primary);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--secondary);
+            border-bottom: 2px solid var(--accent);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar .logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--gold);
+            margin-right: 2rem;
+            text-decoration: none;
+        }
+        .navbar .logo span { color: var(--accent); }
+        .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        .page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--gold); }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .card-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--gold);
+        }
+
+        /* Match card */
+        .match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem; }
+        .match-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            transition: border-color 0.2s;
+        }
+        .match-card:hover { border-color: var(--accent); }
+        .match-card .status {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+        .status-scheduled { background: var(--blue); }
+        .status-live { background: var(--accent); animation: pulse 1.5s infinite; }
+        .status-finished { background: #555; }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+        .match-teams {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0.5rem 0;
+        }
+        .team-name { font-weight: 600; font-size: 1.1rem; }
+        .score { font-size: 1.5rem; font-weight: 800; color: var(--gold); }
+        .vs { color: var(--text-muted); font-size: 0.85rem; }
+
+        .match-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+        /* Probability bars */
+        .prob-bars { display: flex; gap: 4px; height: 24px; margin: 0.75rem 0; border-radius: 4px; overflow: hidden; }
+        .prob-bar { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; }
+        .prob-home { background: var(--green); }
+        .prob-draw { background: #888; }
+        .prob-away { background: var(--accent); }
+
+        .prob-labels { display: flex; justify-content: space-between; font-size: 0.8rem; }
+        .prob-labels span { text-align: center; flex: 1; }
+
+        /* Live score ticker */
+        .live-ticker {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: #fff;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .live-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 1s infinite;
+        }
+
+        /* EV badge */
+        .ev-badge {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .ev-positive { background: rgba(46,204,113,0.2); color: var(--green); }
+        .ev-negative { background: rgba(233,69,96,0.2); color: var(--accent); }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #d63851; }
+        .btn-sm { padding: 0.3rem 0.8rem; font-size: 0.8rem; }
+
+        /* Admin forms */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; color: var(--text-muted); }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--primary);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        th { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* Factor breakdown */
+        .factor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+        .factor-item {
+            background: rgba(255,255,255,0.03);
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .factor-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+        .factor-value { font-size: 1rem; font-weight: 600; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .match-grid { grid-template-columns: 1fr; }
+            .nav-links { gap: 1rem; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">⚽ 世界杯<span>赌神</span></a>
+        <ul class="nav-links">
+            <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">📊 仪表盘</a></li>
+            <li><a href="/betting" class="{% if request.url.path.startswith('/betting') %}active{% endif %}">💰 投注推荐</a></li>
+            <li><a href="/admin" class="{% if request.url.path.startswith('/admin') %}active{% endif %}">⚙ 管理</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}{% endblock %}
+    <script>
+        // Auto-refresh live data every 60s
+        document.addEventListener('DOMContentLoaded', function() {
+            setInterval(function() {
+                if (document.querySelector('.status-live')) {
+                    location.reload();
+                }
+            }, 60000);
+        });
+    </script>
+</body>
+</html>

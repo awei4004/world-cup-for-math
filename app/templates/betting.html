@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="page-title">💰 投注推荐 - 价值投注 & 过关组合</h1>
+
+<div class="card" style="margin-bottom:1.5rem; background:linear-gradient(135deg, #1a3a2a, #1e2a3a); border-color:var(--green);">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <div class="card-header" style="margin:0;">🏦 虚拟资金管理</div>
+            <div style="display:flex; gap:2rem; margin-top:0.5rem;">
+                <div><span style="color:var(--text-muted);">总资金:</span> <strong style="font-size:1.2rem;">¥{{ "%.2f"|format(bankroll) }}</strong></div>
+                <div><span style="color:var(--text-muted);">今日可投:</span> <strong>¥{{ "%.2f"|format(today_remaining) }}</strong></div>
+                <div><span style="color:var(--text-muted);">今日已投:</span> <strong>¥{{ "%.2f"|format(today_staked) }}</strong></div>
+                <div><span style="color:var(--text-muted);">累计收益:</span>
+                    <strong style="color:{% if total_profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
+                        {{ "+" if total_profit >= 0 else "" }}¥{{ "%.2f"|format(total_profit) }}
+                    </strong>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary" hx-post="/betting/api/optimize" hx-swap="none"
+                onclick="this.textContent='优化中...'; setTimeout(()=>location.reload(),2000)">
+            🔄 运行优化器
+        </button>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <div>
+        <h2 style="color:var(--gold); margin-bottom:1rem;">🎯 单关价值投注</h2>
+        {% if recommendations %}
+        {% for rec in recommendations if rec.bet_type == '单关' %}
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>{{ rec.strategy_name }}</strong>
+                <span class="ev-badge ev-positive">EV +{{ "%.2f"|format(rec.expected_value*100) }}%</span>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin:0.5rem 0;">{{ rec.explanation }}</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                <span>赔率: <strong>{{ "%.2f"|format(rec.total_odds) }}</strong></span>
+                <span>凯利: <strong>{{ "%.1f"|format(rec.kelly_fraction*100) }}%</strong></span>
+                <span>建议: <strong>¥{{ "%.2f"|format(rec.suggested_stake) }}</strong></span>
+                <button class="btn btn-sm" style="background:var(--green);color:#fff;padding:4px 12px;border-radius:4px;"
+                        hx-post="/api/place-bet/{{ rec.id }}" hx-swap="none"
+                        onclick="this.textContent='已下单';this.disabled=true;setTimeout(()=>location.reload(),1500)">
+                    跟注
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="card" style="text-align:center; padding:2rem;">
+            <p style="color:var(--text-muted);">暂无推荐，点击运行优化器</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <h2 style="color:var(--gold); margin-bottom:1rem;">🔗 混合过关推荐</h2>
+        {% for rec in recommendations if rec.bet_type != '单关' %}
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>{{ rec.bet_type }} · {{ rec.strategy_name }}</strong>
+                <span class="ev-badge {% if rec.expected_value > 0 %}ev-positive{% else %}ev-negative{% endif %}">
+                    EV {{ "+" if rec.expected_value > 0 else "" }}{{ "%.2f"|format(rec.expected_value*100) }}%
+                </span>
+            </div>
+            {% set matches = rec.get_matches() %}
+            <div style="margin:0.5rem 0;">
+                {% for item in matches %}
+                <div style="font-size:0.85rem; padding:0.25rem 0; border-bottom:1px solid var(--border);">
+                    {{ item.get('home_team', '?') }} vs {{ item.get('away_team', '?') }}
+                    → <strong>{{ item.get('selection', '?') }}</strong> @{{ item.get('odds', '?') }}
+                </div>
+                {% endfor %}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                <span>组合赔率: <strong>{{ "%.2f"|format(rec.total_odds) }}</strong></span>
+                <span>凯利: <strong>{{ "%.1f"|format(rec.kelly_fraction*100) }}%</strong></span>
+                <span>建议: <strong>¥{{ "%.2f"|format(rec.suggested_stake) }}</strong></span>
+                <button class="btn btn-sm" style="background:var(--green);color:#fff;padding:4px 12px;border-radius:4px;"
+                        hx-post="/api/place-bet/{{ rec.id }}" hx-swap="none"
+                        onclick="this.textContent='已下单';this.disabled=true;setTimeout(()=>location.reload(),1500)">
+                    跟注
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="card" style="margin-top:1rem;">
+            <div class="card-header">📒 投注记录</div>
+            <div style="max-height:250px; overflow-y:auto; font-size:0.8rem;">
+                <table style="width:100%;">
+                    <thead><tr><th>比赛</th><th>选项</th><th>金额</th><th>赔率</th><th>结果</th><th>盈亏</th><th></th></tr></thead>
+                    <tbody>
+                    {% if ledger %}
+                    {% for entry in ledger %}
+                    <tr>
+                        <td>#{{ entry.match_id }}</td>
+                        <td>{{ entry.selection }}</td>
+                        <td>¥{{ "%.0f"|format(entry.stake) }}</td>
+                        <td>{{ "%.2f"|format(entry.odds) }}</td>
+                        <td>{% if entry.result == 'pending' %}⏳{% elif entry.result == 'won' %}✅{% elif entry.result == 'lost' %}❌{% endif %}</td>
+                        <td style="color:{% if entry.profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
+                            {{ "+" if entry.profit > 0 else "" }}¥{{ "%.0f"|format(entry.profit) }}
+                        </td>
+                        <td>{% if entry.result == 'pending' %}
+                            <button class="btn btn-sm" style="background:var(--accent);color:#fff;padding:2px 8px;font-size:0.7rem;"
+                                    hx-post="/api/place-bet/{{ entry.id }}?cancel=true" hx-swap="none"
+                                    onclick="this.textContent='...';setTimeout(()=>location.reload(),1000)">撤销</button>
+                        {% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">暂无投注记录，点跟注开始</td></tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="page-title">⚙ 管理后台</h1>
+
+<div style="display:grid; grid-template-columns:2fr 1fr; gap:1.5rem;">
+    <!-- Update Match Results -->
+    <div>
+        <div class="card">
+            <div class="card-header">📝 更新比赛结果</div>
+            <div style="max-height:500px; overflow-y:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>比赛</th>
+                            <th>状态</th>
+                            <th>比分</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in matches %}
+                        <tr>
+                            <td>{{ m.match_date.strftime('%m/%d %H:%M') }}</td>
+                            <td>{{ m.home_team.name_cn }} vs {{ m.away_team.name_cn }}</td>
+                            <td>
+                                <span class="status status-{{ m.status }}">
+                                    {{ m.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if m.home_score is not none %}{{ m.home_score }}-{{ m.away_score }}{% else %}-{% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="/admin/match/{{ m.id }}/result" style="display:flex; gap:4px; align-items:center;">
+                                    <input type="number" name="home_score" placeholder="主" style="width:45px; padding:4px; background:var(--primary); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                                    <span>-</span>
+                                    <input type="number" name="away_score" placeholder="客" style="width:45px; padding:4px; background:var(--primary); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                                    <button type="submit" class="btn btn-sm btn-primary">✓</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div>
+        <!-- Update Odds -->
+        <div class="card">
+            <div class="card-header">🎲 手动录入赔率</div>
+            <form method="POST" action="/admin/match/1/odds">
+                <div class="form-group">
+                    <label>比赛ID</label>
+                    <input type="number" name="match_id_placeholder" placeholder="输入比赛ID">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>主胜赔率</label>
+                        <input type="number" step="0.01" name="win_odds" placeholder="e.g. 2.10">
+                    </div>
+                    <div class="form-group">
+                        <label>平局赔率</label>
+                        <input type="number" step="0.01" name="draw_odds" placeholder="e.g. 3.20">
+                    </div>
+                    <div class="form-group">
+                        <label>客胜赔率</label>
+                        <input type="number" step="0.01" name="lose_odds" placeholder="e.g. 3.80">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">更新赔率</button>
+            </form>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">⚡ 快捷操作</div>
+            <button class="btn btn-primary" style="width:100%; margin-bottom:0.5rem;"
+                    hx-post="/betting/api/optimize" hx-target="body">
+                🔄 重新运行投注优化
+            </button>
+            <button class="btn" style="width:100%; background:var(--blue); color:#fff;"
+                    onclick="alert('TODO: 触发全局重预测')">
+                🔮 生成全部预测
+            </button>
+        </div>
+
+        <!-- System Info -->
+        <div class="card">
+            <div class="card-header">📊 系统状态</div>
+            <div style="font-size:0.85rem;">
+                <p>比赛总数: <strong>104</strong></p>
+                <p>小组赛: <strong>72</strong></p>
+                <p>淘汰赛: <strong>32</strong></p>
+                <p>球队: <strong>48</strong></p>
+                <p>开赛日期: <strong>2026-06-11</strong></p>
+                <p>决赛: <strong>2026-07-19</strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
